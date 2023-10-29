@@ -1,0 +1,360 @@
+﻿@model u22555260_HW03.Models.BookCategoryViewModel
+
+
+<style>
+    .chart-and-buttons-container {
+        flex-wrap: wrap;
+    }
+
+    .buttons-container {
+        display: flex;
+        gap: 20px;
+    }
+
+    .buttons-container > div {
+        flex: 1;
+    }
+
+    p {
+        font-size: 25px;
+        font-family: Algerian
+    }
+
+    li {
+        font-size: 25px;
+        font-family: 'Agency FB';
+    }
+
+    body {
+        background-color: #F0FFFF;
+        background-size: cover;
+        background-repeat: no-repeat;
+    }
+</style>
+
+<div class="chart-and-buttons-container">
+    <h2>Report</h2>
+
+    <canvas id="myChart" width="1400" height="800"></canvas>
+
+    <br />
+
+    <p>
+        Top 3 Most Borrowed Books Are:
+
+        <br />
+        <ul>
+            <li id="popular1"></li>
+            <li id="popular2"></li>
+            <li id="popular3"></li>
+        </ul>
+
+        <br />
+    <p>
+        Due to their popularity, these books will be needing:
+        <br />
+
+        <ul>
+            <li>Copies</li>
+            <li>Repairs</li>
+            <li>Replacements</li>
+        </ul>
+    </p>
+</div>
+
+<br />
+<br />
+<div>
+    <h2>Export Chart</h2>
+    <div class="buttons-container">
+        @using (Html.BeginForm("ExportReport", "Home", FormMethod.Post, new { id = "exportXLSXForm" }))
+        {
+            <div class="form-group">
+                @Html.Label("File Name")
+                @Html.TextBox("fileName", null, new { @class = "form-control", id = "fileNameNewXLSX" })
+            </div>
+            <br />
+
+            <div class="form-group">
+                @Html.Label("File Type")
+                @Html.DropDownList("fileType", new SelectList(new[]
+                {
+                    new SelectListItem { Text = "Excel (XLSX)", Value = "xlsx" },
+                }, "Value", "Text"), new { @class = "form-control", id = "fileTypeDropdownXLSX" })
+            </div>
+            <br />
+            <button type="submit" class="btn btn-primary" id="exportButtonXLSX">Export To XLSX</button>
+        }
+
+        <br />
+        <br />
+
+        @using (Html.BeginForm("SavePDF", "Home", FormMethod.Post, new { id = "exportPDFForm" }))
+        {
+            <div class="form-group">
+                @Html.Label("File Name")
+                @Html.TextBox("fileName", null, new { @class = "form-control", id = "fileNameNewPDF" })
+            </div>
+            <br />
+
+            <div class="form-group">
+                @Html.Label("File Type")
+                @Html.DropDownList("fileType", new SelectList(new[]
+                {
+                    new SelectListItem { Text = "PDF", Value = "pdf" },
+                }, "Value", "Text"), new { @class = "form-control", id = "fileTypeDropdownPDF" })
+            </div>
+            <br />
+            <button type="submit" id="downloadPdf" class="btn btn-primary">Export To PDF</button>
+        }
+    </div>
+</div>
+
+<br />
+<br />
+<div id="archive">
+    <h2>Report Archive</h2>
+
+    <table id="archiveTable" class="table table-bordered" style="width:100%">
+        <thead>
+            <tr class="table table-primary">
+                <th>File Name</th>
+                <th>Type</th>
+                <th>Date of Creation</th>
+                <th>Configure</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in Model.downloadedFiles)
+            {
+                <tr>
+                    <td>@Html.DisplayFor(modelItem => item.FileName)</td>
+                    <td>@Html.DisplayFor(modelItem => item.FileType)</td>
+                    <td>@Html.DisplayFor(modelItem => item.DateDownloaded)</td>
+                    <td class="text-end">
+                        <div class="btn-group" role="group">
+                            @if (item.FileType == "pdf")
+                            { 
+                                <button class="downloadPdf2 btn btn-primary">Download</button>
+                            }
+                            else
+                            {
+                                using (Html.BeginForm("ExportReport", "Home", FormMethod.Post, new { id = "exportXLSXForm" }))
+                                {
+                                    <div class="form-group">
+                                        @Html.TextBox("fileName", item.FileName, new { @class = "form-control", id = "fileNameNewXLSX", style = "display:none;" })
+                                    </div>
+                                    <button type="submit" class="btn btn-primary" id="exportButtonXLSX">Download</button>
+                                }
+                            }
+                            <button href="#" class="delete-link btn btn-primary mx-1" data-url="@Url.Action("Delete", "DownloadedFiles", new { id = item.FileID })">Delete</button>
+                        </div>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+</div>
+
+
+
+<div id="myModal" class="modal fade" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">CRUD</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="modal-content">
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.ckeditor.com/ckeditor5/40.0.0/classic/ckeditor.js"></script>
+
+<script>
+
+    $(document).ready(function () {
+        $(".export-link").click(function () {
+            return confirm("Are you sure you want to export the data?");
+        });
+    });
+
+    var ctx = document.getElementById('myChart').getContext('2d');
+    var chartData = @Html.Raw(ViewBag.ChartData);
+
+    var labels = chartData.map(item => item.Categories);
+    var data = chartData.map(item => item.NumberOfBooks);
+
+    var topIndices = [];
+    var dataCopy = [...data];
+    for (var i = 0; i < 3; i++) {
+        var maxIndex = dataCopy.indexOf(Math.max(...dataCopy));
+        topIndices.push(maxIndex);
+        dataCopy[maxIndex] = -1;
+    }
+
+    var topCategories = topIndices.map(index => labels[index]);
+
+    var myChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Times Borrowed',
+                data: data,
+                backgroundColor: [
+                    'rgba(75, 192, 192, 0.2)',
+                    'rgba(54, 162, 235, 0.2)',
+                    'rgba(255, 99, 132, 0.2)',
+                    'rgba(153, 102, 255, 0.2)',
+                    'rgba(255, 159, 64, 0.2)',
+                    'rgba(255, 206, 86, 0.2)'
+                ],
+                borderColor: [
+                    '#777',
+                    '#777',
+                    '#777',
+                    '#777',
+                    '#777',
+                    '#777'
+                ],
+                borderWidth: 1,
+                hoverBorderWidth: 4,
+                hoverBorderColor: '#000'
+            }]
+        },
+        options: {
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Borrowed Books & How Many Times They Were Borrowed',
+                    font: {
+                        size: 20,
+                        family: "'Helvetica Neue', 'Helvetica', 'Arial', sans-serif"
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    beginAtZero: true
+                },
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+
+    document.getElementById("popular1").textContent = topCategories[0];
+    document.getElementById("popular2").textContent = topCategories[1];
+    document.getElementById("popular3").textContent = topCategories[2];
+
+
+    function getPdfDocDef() {
+
+        var chartImage = {
+            image: myChart.toBase64Image(),
+            width: 400,
+            height: 400,
+            margin: [100, 10, 0, 0]
+        };
+
+        var tableData = [];
+
+        for (var i = 0; i < labels.length; i++) {
+            var label = labels[i];
+            var dataPoint = data[i];
+            tableData.push([label + ':', dataPoint]);
+        }
+
+        var tableHeaders = ['Book Name: ', 'Times Borrowed'];
+
+        var docDefinition = {
+            content: [
+                chartImage,
+                {
+                    table: {
+                        widths: ['auto', 'auto'],
+                        headerRows: 1,
+                        body: [tableHeaders].concat(tableData)
+                    }
+                }
+            ]
+        };
+
+
+        return docDefinition;
+    }
+
+    $(".downloadPdf2").click(function () {
+        pdfMake.createPdf(getPdfDocDef()).download();
+    });
+
+    $("#openPdf").click(function () {
+        pdfMake.createPdf(getPdfDocDef()).open();
+    });
+
+    $("#printPdf").click(function () {
+        pdfMake.createPdf(getPdfDocDef()).print();
+    });
+
+    $("#downloadPdf").click(function () {
+
+        var pdf = pdfMake.createPdf(getPdfDocDef());
+
+        var fileName = document.getElementById("fileNameNewPDF").value;
+
+        if (fileName.trim() !== "") {
+
+            pdf.download(fileName + ".pdf");
+        } else {
+
+            alert("Please enter a filename!");
+        }
+    });
+
+
+
+    $(function () {
+        $(".edit-link, .edit-link-in-modal").click(function (e) {
+            e.preventDefault();
+            var url = $(this).data("url");
+
+            $.get(url, function (data) {
+                $("#modal-content").empty();
+                $("#modal-content").html(data);
+                $("#myModal").modal("show");
+            });
+        });
+
+        $("#modal-content").on("submit", "form", function (e) {
+            e.preventDefault();
+            var form = $(this);
+            var url = form.attr("action");
+            var formData = form.serialize();
+
+            $.post(url, formData, function (data) {
+                $("#myModal").modal("hide");
+                location.reload();
+            });
+        });
+
+        $(".details-link, .delete-link, .create-link, .create-lookup-link").click(function (e) {
+            e.preventDefault();
+            var url = $(this).data("url");
+
+            $.get(url, function (data) {
+                $("#modal-content").empty();
+                $("#modal-content").html(data);
+                $("#myModal").modal("show");
+            });
+        });
+    });
+
+
+</script>

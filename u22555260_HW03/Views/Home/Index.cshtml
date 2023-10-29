@@ -1,0 +1,173 @@
+﻿@model u22555260_HW03.Models.CombindedTableViews
+
+<style>
+    body {
+        background-image: url('https://img.freepik.com/free-vector/beautiful-book-club-pattern-illustration_23-2149330102.jpg');
+        background-size: cover;
+        background-repeat: no-repeat;
+        color: white;
+    }
+</style>
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>Home</title>
+</head>
+
+<body>
+
+
+    <div class="row">
+        <section class="col-md-4">
+            <h2>Students</h2>
+            <p>
+                <button href="#" class="create-link btn btn-info" data-url="@Url.Action("Create", "students")">Create Student</button>
+            </p>
+
+            <table id="myTable" class="table table-bordered" style="width:100%">
+                <thead>
+                    <tr class="table-info">
+                        <th>Name</th>
+                        <th>Surname</th>
+                        <th>Birthdate</th>
+                        <th>Gender</th>
+                        <th>Class</th>
+                        <th>Point</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model.Students)
+                    {
+                        <tr>
+                            <td>@Html.DisplayFor(modelItem => item.name)</td>
+                            <td>@Html.DisplayFor(modelItem => item.surname)</td>
+                            <td>@Html.DisplayFor(modelItem => item.birthdate)</td>
+                            <td>@Html.DisplayFor(modelItem => item.gender)</td>
+                            <td>@Html.DisplayFor(modelItem => item.@class)</td>
+                            <td>@Html.DisplayFor(modelItem => item.point)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+
+        </section>
+
+        <section class="col-md-4">
+            <h2 id="librariesTitle"></h2>
+
+
+        </section>
+
+
+
+        <section class="col-md-4">
+            <h2>Books</h2>
+
+            <p>
+                <button href="#" class="create-link btn btn-primary" data-url="@Url.Action("Create", "books")">Create Book</button>
+            </p>
+
+            <table id="myTable2" class="table table-bordered" style="width:100%">
+                <thead>
+                    <tr class="table-primary">
+                        <th>Book Name</th>
+                        <th>Page Count</th>
+                        <th>Point</th>
+                        <th>Author</th>
+                        <th>Book Type</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model.Borrows)
+                    {
+                        <tr>
+                            <td>@Html.DisplayFor(modelItem => item.books.name)</td>
+                            <td>@Html.DisplayFor(modelItem => item.books.pagecount)</td>
+                            <td>@Html.DisplayFor(modelItem => item.books.point)</td>
+                            <td>@Html.DisplayFor(modelItem => item.books.authors.name) @Html.DisplayFor(modelItem => item.books.authors.surname)</td>
+                            <td>@Html.DisplayFor(modelItem => item.books.types.name)</td>
+
+                            @if (item.broughtDate > item.takenDate)
+                            {
+                                <td>Available</td>
+                            }
+                            else
+                            {
+                                <td>Out</td>
+                            }
+
+                        </tr>
+                    }
+                </tbody>
+            </table>
+
+
+        </section>
+
+
+    </div>
+
+    </body>
+
+    <div id="myModal" class="modal fade" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">CRUD</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="modal-content">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+
+    <script>
+
+        $(document).ready(function () {
+            $("#myTable").DataTable();
+            $("#myTable2").DataTable();
+        })
+
+
+        $(function () {
+            $(".edit-link, .edit-link-in-modal").click(function (e) {
+                e.preventDefault();
+                var url = $(this).data("url");
+
+                $.get(url, function (data) {
+                    $("#modal-content").empty();
+                    $("#modal-content").html(data);
+                    $("#myModal").modal("show");
+                });
+            });
+
+            $("#modal-content").on("submit", "form", function (e) {
+                e.preventDefault();
+                var form = $(this);
+                var url = form.attr("action");
+                var formData = form.serialize();
+
+                $.post(url, formData, function (data) {
+                    $("#myModal").modal("hide");
+                    location.reload();
+                });
+            });
+
+            $(".details-link, .delete-link, .create-link, .create-lookup-link").click(function (e) {
+                e.preventDefault();
+                var url = $(this).data("url");
+
+                $.get(url, function (data) {
+                    $("#modal-content").empty();
+                    $("#modal-content").html(data);
+                    $("#myModal").modal("show");
+                });
+            });
+        });
+    </script>
